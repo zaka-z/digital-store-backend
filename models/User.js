@@ -3,7 +3,12 @@ const bcrypt = require('bcrypt');
 
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
-  password: { type: String, required: true }
+  password: { type: String, required: true },
+  license: {
+    type: String,
+    enum: ['user', 'admin', 'owner'],
+    default: 'user' // همه کاربران جدید به صورت پیش‌فرض user هستند
+  }
 });
 
 // هش کردن رمز قبل از ذخیره

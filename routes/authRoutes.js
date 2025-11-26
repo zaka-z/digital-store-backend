@@ -3,28 +3,26 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-// 🔑 ثبت‌نام کاربر جدید
+// ثبت‌نام کاربر جدید
 router.post('/register', async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    // بررسی تکراری بودن نام کاربری
     const existingUser = await User.findOne({ username });
     if (existingUser) {
       return res.status(400).json({ message: 'نام کاربری قبلاً ثبت شده است' });
     }
 
-    // ساخت کاربر جدید (رمز عبور به صورت خودکار در pre('save') هش می‌شود)
-    const newUser = new User({ username, password });
+    const newUser = new User({ username, password }); // license پیش‌فرض user
     await newUser.save();
 
-    res.json({ message: 'ثبت‌نام موفق!' });
+    res.json({ message: 'ثبت‌نام موفق!', license: newUser.license });
   } catch (err) {
     res.status(500).json({ message: 'خطا در ثبت‌نام', error: err.message });
   }
 });
 
-// 🔑 ورود کاربر
+// ورود کاربر
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -41,7 +39,7 @@ router.post('/login', async (req, res) => {
 
     // تولید توکن JWT
     const token = jwt.sign(
-      { id: user._id, username: user.username },
+      { id: user._id, username: user.username, license: user.license },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
@@ -52,7 +50,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// 🧑 مسیر گرفتن اطلاعات کاربر لاگین‌شده
+// گرفتن اطلاعات کاربر لاگین‌شده
 router.get('/me', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -63,7 +61,7 @@ router.get('/me', async (req, res) => {
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const user = await User.findById(decoded.id).select('-password'); // رمز عبور حذف شود
+    const user = await User.findById(decoded.id).select('-password');
     if (!user) {
       return res.status(404).json({ message: 'کاربر یافت نشد' });
     }
@@ -71,6 +69,23 @@ router.get('/me', async (req, res) => {
     res.json(user);
   } catch (err) {
     res.status(401).json({ message: 'توکن نامعتبر است', error: err.message });
+  }
+});
+
+// تغییر نقش کاربر (مثلاً به admin یا owner)
+router.put('/role/:id', async (req, res) => {
+  try {
+    const { license } = req.body; // 'admin' یا 'owner'
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { license },
+      { new: true }
+    );
+    if (!user) return res.status(404).json({ message: 'کاربر یافت نشد' });
+
+    res.json({ message: 'نقش کاربر تغییر کرد', user });
+  } catch (err) {
+    res.status(500).json({ message: 'خطا در تغییر نقش', error: err.message });
   }
 });
 

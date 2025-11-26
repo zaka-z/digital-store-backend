@@ -20,7 +20,7 @@ app.use(cors({ origin: '*' }));
 
 // Routes
 const authRoutes = require('./routes/authRoutes');
-const productRoutes = require('./routes/productRoutes');
+const productRoutes = require('./routes/productRoutes'); // اگر داری
 
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
