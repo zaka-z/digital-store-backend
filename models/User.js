@@ -1,14 +1,10 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  license: {
-    type: String,
-    enum: ['user', 'admin', 'owner'],
-    default: 'user' // همه کاربران جدید به صورت پیش‌فرض user هستند
-  }
+  license: { type: String, enum: ['user', 'admin', 'owner'], default: 'user' }
 });
 
 // هش کردن رمز قبل از ذخیره
@@ -19,7 +15,7 @@ userSchema.pre('save', async function (next) {
 });
 
 // مقایسه رمز
-userSchema.methods.comparePassword = function (candidatePassword) {
+userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
 

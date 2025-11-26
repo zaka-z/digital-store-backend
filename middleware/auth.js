@@ -1,4 +1,3 @@
-// middleware/auth.js
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
@@ -18,7 +17,6 @@ const authMiddleware = (roles = []) => {
         return res.status(404).json({ message: 'کاربر یافت نشد' });
       }
 
-      // بررسی نقش
       if (roles.length && !roles.includes(user.license)) {
         return res.status(403).json({ message: 'دسترسی غیرمجاز' });
       }
