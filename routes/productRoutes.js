@@ -24,8 +24,8 @@ router.post('/buy/:id', authMiddleware(['user', 'admin']), async (req, res) => {
   }
 });
 
-// افزودن محصول (admin و owner)
-router.post('/add', authMiddleware(['admin', 'owner']), async (req, res) => {
+// افزودن محصول (admin و owner) → مسیر اصلاح شد: POST /api/products
+router.post('/', authMiddleware(['admin', 'owner']), async (req, res) => {
   try {
     const { name, price, description, fileUrl } = req.body;
     const product = new Product({ name, price, description, fileUrl });

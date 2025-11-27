@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const authMiddleware = require('../middleware/auth');
 
 // ثبت‌نام کاربر جدید
 router.post('/register', async (req, res) => {
@@ -13,7 +14,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'نام کاربری قبلاً ثبت شده است' });
     }
 
-    const newUser = new User({ username, password }); // license پیش‌فرض user
+    const newUser = new User({ username, password }); // رمز باید در مدل هش شود
     await newUser.save();
 
     res.json({ message: 'ثبت‌نام موفق!', license: newUser.license });
@@ -44,7 +45,10 @@ router.post('/login', async (req, res) => {
       { expiresIn: '1h' }
     );
 
-    res.json({ token });
+    res.json({
+      token,
+      user: { id: user._id, username: user.username, license: user.license }
+    });
   } catch (err) {
     res.status(500).json({ message: 'خطا در ورود', error: err.message });
   }
@@ -68,12 +72,12 @@ router.get('/me', async (req, res) => {
 
     res.json(user);
   } catch (err) {
-    res.status(401).json({ message: 'توکن نامعتبر است', error: err.message });
+    res.status(401).json({ message: 'توکن منقضی یا نامعتبر است', error: err.message });
   }
 });
 
-// تغییر نقش کاربر (مثلاً به admin یا owner)
-router.put('/role/:id', async (req, res) => {
+// تغییر نقش کاربر (فقط owner مجاز است)
+router.put('/role/:id', authMiddleware(['owner']), async (req, res) => {
   try {
     const { license } = req.body; // 'admin' یا 'owner'
     const user = await User.findByIdAndUpdate(
