@@ -1,3 +1,4 @@
+// models/User.js
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
@@ -6,12 +7,19 @@ const userSchema = new mongoose.Schema(
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     license: { type: String, enum: ['user', 'admin', 'owner'], default: 'user' },
+
+    // اطلاعات پروفایل
+    firstName: { type: String },
+    lastName: { type: String },
+    address: { type: String },
+    phone1: { type: String },   // شماره تلفن اصلی (اجباری هنگام خرید)
+    phone2: { type: String },   // شماره تلفن دوم (اختیاری)
+
     createdAt: { type: Date, default: Date.now },
     lastLogin: { type: Date }
   },
   {
-    // حذف خودکار __v
-    versionKey: false
+    versionKey: false // حذف خودکار __v
   }
 );
 

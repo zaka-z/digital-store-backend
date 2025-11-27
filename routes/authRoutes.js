@@ -1,3 +1,4 @@
+// routes/authRoutes.js
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
@@ -30,14 +31,10 @@ router.post('/login', async (req, res) => {
     const { username, password } = req.body;
 
     const user = await User.findOne({ username });
-    if (!user) {
-      return res.status(400).json({ message: 'کاربر یافت نشد' });
-    }
+    if (!user) return res.status(400).json({ message: 'کاربر یافت نشد' });
 
     const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'رمز عبور اشتباه است' });
-    }
+    if (!isMatch) return res.status(400).json({ message: 'رمز عبور اشتباه است' });
 
     // ثبت آخرین ورود
     user.lastLogin = new Date();
@@ -52,7 +49,7 @@ router.post('/login', async (req, res) => {
 
     res.json({
       token,
-      user: { id: user._id, username: user.username, license: user.license }
+      user: user.toJSON()
     });
   } catch (err) {
     res.status(500).json({ message: 'خطا در ورود', error: err.message });
@@ -63,9 +60,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', authMiddleware(['user', 'admin', 'owner']), async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
-    if (!user) {
-      return res.status(404).json({ message: 'کاربر یافت نشد' });
-    }
+    if (!user) return res.status(404).json({ message: 'کاربر یافت نشد' });
     res.json(user);
   } catch (err) {
     res.status(401).json({ message: 'توکن نامعتبر یا منقضی شده', error: err.message });
@@ -75,9 +70,16 @@ router.get('/me', authMiddleware(['user', 'admin', 'owner']), async (req, res) =
 // ویرایش پروفایل کاربر لاگین‌شده
 router.put('/profile', authMiddleware(['user', 'admin', 'owner']), async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, firstName, lastName, address, phone1, phone2 } = req.body;
     const update = {};
+
     if (username) update.username = username;
+    if (firstName) update.firstName = firstName;
+    if (lastName) update.lastName = lastName;
+    if (address) update.address = address;
+    if (phone1) update.phone1 = phone1;
+    if (phone2) update.phone2 = phone2;
+
     if (password && password.trim() !== '') {
       const salt = await bcrypt.genSalt(10);
       update.password = await bcrypt.hash(password, salt);
@@ -111,7 +113,6 @@ router.put('/role/:id', authMiddleware(['owner']), async (req, res) => {
 
 // خروج کاربر (پاک کردن توکن سمت کلاینت)
 router.post('/logout', (req, res) => {
-  // در JWT معمولاً logout سمت کلاینت انجام می‌شود
   res.json({ message: 'خروج موفق! لطفاً توکن را از کلاینت پاک کنید' });
 });
 
