@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 
@@ -14,7 +15,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'نام کاربری قبلاً ثبت شده است' });
     }
 
-    const newUser = new User({ username, password }); // رمز باید در مدل هش شود
+    const newUser = new User({ username, password }); // رمز در مدل هش می‌شود
     await newUser.save();
 
     res.json({ message: 'ثبت‌نام موفق!', license: newUser.license });
@@ -38,6 +39,10 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'رمز عبور اشتباه است' });
     }
 
+    // ثبت آخرین ورود
+    user.lastLogin = new Date();
+    await user.save();
+
     // تولید توکن JWT
     const token = jwt.sign(
       { id: user._id, username: user.username, license: user.license },
@@ -55,24 +60,35 @@ router.post('/login', async (req, res) => {
 });
 
 // گرفتن اطلاعات کاربر لاگین‌شده
-router.get('/me', async (req, res) => {
+router.get('/me', authMiddleware(['user', 'admin', 'owner']), async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      return res.status(401).json({ message: 'توکن وجود ندارد' });
-    }
-
-    const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    const user = await User.findById(decoded.id).select('-password');
+    const user = await User.findById(req.user.id).select('-password');
     if (!user) {
       return res.status(404).json({ message: 'کاربر یافت نشد' });
     }
-
     res.json(user);
   } catch (err) {
-    res.status(401).json({ message: 'توکن منقضی یا نامعتبر است', error: err.message });
+    res.status(401).json({ message: 'توکن نامعتبر یا منقضی شده', error: err.message });
+  }
+});
+
+// ویرایش پروفایل کاربر لاگین‌شده
+router.put('/profile', authMiddleware(['user', 'admin', 'owner']), async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const update = {};
+    if (username) update.username = username;
+    if (password && password.trim() !== '') {
+      const salt = await bcrypt.genSalt(10);
+      update.password = await bcrypt.hash(password, salt);
+    }
+
+    const user = await User.findByIdAndUpdate(req.user.id, update, { new: true }).select('-password');
+    if (!user) return res.status(404).json({ message: 'کاربر یافت نشد' });
+
+    res.json({ message: 'پروفایل به‌روزرسانی شد', user });
+  } catch (err) {
+    res.status(500).json({ message: 'خطا در ویرایش پروفایل', error: err.message });
   }
 });
 
@@ -84,13 +100,19 @@ router.put('/role/:id', authMiddleware(['owner']), async (req, res) => {
       req.params.id,
       { license },
       { new: true }
-    );
+    ).select('-password');
     if (!user) return res.status(404).json({ message: 'کاربر یافت نشد' });
 
     res.json({ message: 'نقش کاربر تغییر کرد', user });
   } catch (err) {
     res.status(500).json({ message: 'خطا در تغییر نقش', error: err.message });
   }
+});
+
+// خروج کاربر (پاک کردن توکن سمت کلاینت)
+router.post('/logout', (req, res) => {
+  // در JWT معمولاً logout سمت کلاینت انجام می‌شود
+  res.json({ message: 'خروج موفق! لطفاً توکن را از کلاینت پاک کنید' });
 });
 
 module.exports = router;
