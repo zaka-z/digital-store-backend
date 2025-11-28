@@ -17,13 +17,27 @@ const orderSchema = new mongoose.Schema(
     // وضعیت سفارش
     status: {
       type: String,
-      enum: ['pending', 'paid', 'shipped', 'cancelled'],
+      enum: ['pending', 'processed', 'paid', 'shipped', 'cancelled'],
       default: 'pending'
     },
 
     // اطلاعات کاربر در زمان خرید (برای جلوگیری از تغییر بعدی پروفایل)
+    buyerFirstName: { type: String, required: true },
+    buyerLastName: { type: String, required: true },
+    buyerEmail: { type: String }, // اختیاری
     deliveryAddress: { type: String, required: true },
-    contactPhone: { type: String, required: true }
+    contactPhone: { type: String, required: true },
+    contactPhone2: { type: String }, // شماره دوم اختیاری
+
+    // روش پرداخت
+    paymentMethod: {
+      type: String,
+      enum: ['cash', 'card', 'online'],
+      default: 'online'
+    },
+
+    // یادداشت یا توضیحات سفارش
+    note: { type: String }
   },
   {
     timestamps: true, // ایجاد خودکار createdAt و updatedAt
