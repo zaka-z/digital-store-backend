@@ -21,9 +21,12 @@ mongoose.connect(process.env.MONGO_URI, {
 // مسیرها
 const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
+const orderRoutes = require('./routes/orderRoutes');
+
 
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes);
 
 // مسیر ریشه
 app.get('/', (req, res) => {
