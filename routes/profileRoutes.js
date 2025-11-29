@@ -7,9 +7,9 @@ const authMiddleware = require('../middleware/auth');
 // گرفتن پروفایل کاربر
 router.get('/', authMiddleware(['user', 'admin', 'owner']), async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password'); // حذف رمز عبور
+    const user = await User.findById(req.user.id).select('-password');
     if (!user) return res.status(404).json({ message: '❌ کاربر یافت نشد' });
-    res.json(user);
+    res.status(200).json(user);
   } catch (err) {
     res.status(500).json({ message: '❌ خطا در گرفتن پروفایل', error: err.message });
   }
@@ -37,7 +37,7 @@ router.put('/', authMiddleware(['user', 'admin', 'owner']), async (req, res) => 
     const user = await User.findByIdAndUpdate(req.user.id, update, { new: true }).select('-password');
     if (!user) return res.status(404).json({ message: '❌ کاربر یافت نشد' });
 
-    res.json({ message: '✅ پروفایل به‌روزرسانی شد', user });
+    res.status(200).json({ message: '✅ پروفایل به‌روزرسانی شد', user });
   } catch (err) {
     res.status(500).json({ message: '❌ خطا در ویرایش پروفایل', error: err.message });
   }
@@ -48,7 +48,7 @@ router.delete('/', authMiddleware(['user', 'admin', 'owner']), async (req, res) 
   try {
     const user = await User.findByIdAndDelete(req.user.id);
     if (!user) return res.status(404).json({ message: '❌ کاربر یافت نشد' });
-    res.json({ message: '🗑️ حساب کاربری حذف شد' });
+    res.status(200).json({ message: '🗑️ حساب کاربری حذف شد' });
   } catch (err) {
     res.status(500).json({ message: '❌ خطا در حذف حساب', error: err.message });
   }

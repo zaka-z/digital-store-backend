@@ -1,4 +1,3 @@
-// routes/authRoutes.js
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
@@ -11,6 +10,10 @@ router.post('/register', async (req, res) => {
   try {
     const { username, password } = req.body;
 
+    if (!username || !password || password.length < 6) {
+      return res.status(400).json({ message: 'نام کاربری و رمز عبور معتبر وارد کنید' });
+    }
+
     const existingUser = await User.findOne({ username });
     if (existingUser) {
       return res.status(400).json({ message: 'نام کاربری قبلاً ثبت شده است' });
@@ -19,9 +22,9 @@ router.post('/register', async (req, res) => {
     const newUser = new User({ username, password }); // رمز در مدل هش می‌شود
     await newUser.save();
 
-    res.json({ message: 'ثبت‌نام موفق!', license: newUser.license });
+    res.status(201).json({ message: '✅ ثبت‌نام موفق!', license: newUser.license });
   } catch (err) {
-    res.status(500).json({ message: 'خطا در ثبت‌نام', error: err.message });
+    res.status(500).json({ message: '❌ خطا در ثبت‌نام', error: err.message });
   }
 });
 
@@ -31,28 +34,26 @@ router.post('/login', async (req, res) => {
     const { username, password } = req.body;
 
     const user = await User.findOne({ username });
-    if (!user) return res.status(400).json({ message: 'کاربر یافت نشد' });
+    if (!user) return res.status(404).json({ message: 'کاربر یافت نشد' });
 
     const isMatch = await user.comparePassword(password);
-    if (!isMatch) return res.status(400).json({ message: 'رمز عبور اشتباه است' });
+    if (!isMatch) return res.status(401).json({ message: 'رمز عبور اشتباه است' });
 
-    // ثبت آخرین ورود
     user.lastLogin = new Date();
     await user.save();
 
-    // تولید توکن JWT
     const token = jwt.sign(
       { id: user._id, username: user.username, license: user.license },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
 
-    res.json({
+    res.status(200).json({
       token,
       user: user.toJSON()
     });
   } catch (err) {
-    res.status(500).json({ message: 'خطا در ورود', error: err.message });
+    res.status(500).json({ message: '❌ خطا در ورود', error: err.message });
   }
 });
 
@@ -61,7 +62,7 @@ router.get('/me', authMiddleware(['user', 'admin', 'owner']), async (req, res) =
   try {
     const user = await User.findById(req.user.id).select('-password');
     if (!user) return res.status(404).json({ message: 'کاربر یافت نشد' });
-    res.json(user);
+    res.status(200).json(user);
   } catch (err) {
     res.status(401).json({ message: 'توکن نامعتبر یا منقضی شده', error: err.message });
   }
@@ -88,32 +89,37 @@ router.put('/profile', authMiddleware(['user', 'admin', 'owner']), async (req, r
     const user = await User.findByIdAndUpdate(req.user.id, update, { new: true }).select('-password');
     if (!user) return res.status(404).json({ message: 'کاربر یافت نشد' });
 
-    res.json({ message: 'پروفایل به‌روزرسانی شد', user });
+    res.status(200).json({ message: '✅ پروفایل به‌روزرسانی شد', user });
   } catch (err) {
-    res.status(500).json({ message: 'خطا در ویرایش پروفایل', error: err.message });
+    res.status(500).json({ message: '❌ خطا در ویرایش پروفایل', error: err.message });
   }
 });
 
 // تغییر نقش کاربر (فقط owner مجاز است)
 router.put('/role/:id', authMiddleware(['owner']), async (req, res) => {
   try {
-    const { license } = req.body; // 'admin' یا 'owner'
+    const { license } = req.body;
+    if (!['user', 'admin', 'owner'].includes(license)) {
+      return res.status(400).json({ message: 'نقش نامعتبر است' });
+    }
+
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { license },
       { new: true }
     ).select('-password');
+
     if (!user) return res.status(404).json({ message: 'کاربر یافت نشد' });
 
-    res.json({ message: 'نقش کاربر تغییر کرد', user });
+    res.status(200).json({ message: '✅ نقش کاربر تغییر کرد', user });
   } catch (err) {
-    res.status(500).json({ message: 'خطا در تغییر نقش', error: err.message });
+    res.status(500).json({ message: '❌ خطا در تغییر نقش', error: err.message });
   }
 });
 
-// خروج کاربر (پاک کردن توکن سمت کلاینت)
+// خروج کاربر
 router.post('/logout', (req, res) => {
-  res.json({ message: 'خروج موفق! لطفاً توکن را از کلاینت پاک کنید' });
+  res.status(200).json({ message: '✅ خروج موفق! لطفاً توکن را از کلاینت پاک کنید' });
 });
 
 module.exports = router;

@@ -1,27 +1,30 @@
-// models/User.js
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema(
   {
-    username: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
+    username: { type: String, required: true, unique: true, minlength: 3, maxlength: 50 },
+    password: { type: String, required: true, minlength: 6 },
     license: { type: String, enum: ['user', 'admin', 'owner'], default: 'user' },
 
     // اطلاعات پروفایل
     firstName: { type: String },
     lastName: { type: String },
     address: { type: String },
-    phone1: { type: String },   // شماره تلفن اصلی (اجباری هنگام خرید)
-    phone2: { type: String },   // شماره تلفن دوم (اختیاری)
+    phone1: { type: String, match: /^[0-9]{10,15}$/ }, // شماره تلفن معتبر
+    phone2: { type: String },
 
-    createdAt: { type: Date, default: Date.now },
     lastLogin: { type: Date }
   },
   {
-    versionKey: false // حذف خودکار __v
+    timestamps: true, // ایجاد خودکار createdAt و updatedAt
+    versionKey: false
   }
 );
+
+// ایندکس‌ها
+userSchema.index({ username: 1 });
+userSchema.index({ license: 1 });
 
 // هش کردن رمز قبل از ذخیره
 userSchema.pre('save', async function (next) {
@@ -31,7 +34,7 @@ userSchema.pre('save', async function (next) {
   next();
 });
 
-// هش کردن رمز در findOneAndUpdate (برای تغییر رمز در پروفایل)
+// هش کردن رمز در findOneAndUpdate
 userSchema.pre('findOneAndUpdate', async function (next) {
   const update = this.getUpdate();
   if (update.password) {

@@ -1,18 +1,42 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+/**
+ * authMiddleware(roles)
+ * roles: آرایه‌ای از نقش‌های مجاز ['user','admin','owner'] یا خالی برای آزاد بودن
+ */
 const authMiddleware = (roles = []) => {
+  // اطمینان از آرایه بودن roles
+  const allowedRoles = Array.isArray(roles) ? roles : [roles];
+
   return async (req, res, next) => {
     try {
-      // گرفتن توکن از هدر یا کوکی
-      const authHeader = req.headers.authorization || req.headers['x-access-token'];
-      if (!authHeader) {
-        return res.status(401).json({ message: '⛔ توکن وجود ندارد' });
+      // اجازه عبور preflight برای CORS
+      if (req.method === 'OPTIONS') {
+        return res.status(204).end();
       }
 
-      const token = authHeader.startsWith('Bearer ')
-        ? authHeader.split(' ')[1]
-        : authHeader;
+      // بررسی وجود JWT_SECRET
+      if (!process.env.JWT_SECRET) {
+        return res.status(500).json({ message: '❌ تنظیم JWT_SECRET در محیط سرور الزامی است' });
+      }
+
+      // دریافت توکن از Authorization, x-access-token یا کوکی‌ها
+      const authHeader = req.headers.authorization || req.headers['x-access-token'];
+      const cookieToken =
+        (req.cookies && (req.cookies.token || req.cookies.jwt)) ||
+        (req.signedCookies && (req.signedCookies.token || req.signedCookies.jwt));
+
+      let token;
+      if (authHeader) {
+        token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+      } else if (cookieToken) {
+        token = cookieToken;
+      }
+
+      if (!token) {
+        return res.status(401).json({ message: '⛔ توکن وجود ندارد' });
+      }
 
       // بررسی و decode توکن
       let decoded;
@@ -31,17 +55,22 @@ const authMiddleware = (roles = []) => {
         return res.status(404).json({ message: '⛔ کاربر یافت نشد' });
       }
 
-      // بررسی نقش‌ها
-      if (roles.length && !roles.includes(user.license)) {
+      // بررسی نقش‌ها (در صورت نیاز)
+      if (allowedRoles.length && !allowedRoles.includes(user.license)) {
         return res.status(403).json({ message: '⛔ دسترسی غیرمجاز' });
       }
 
-      // ذخیره اطلاعات کاربر در req.user
+      // ذخیره اطلاعات ضروری کاربر روی req.user
       req.user = {
-        id: user._id,
+        id: user._id.toString(),
         username: user.username,
         license: user.license,
-        email: user.email,
+        email: user.email || '',
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        address: user.address || '',
+        phone1: user.phone1 || '',
+        phone2: user.phone2 || ''
       };
 
       next();

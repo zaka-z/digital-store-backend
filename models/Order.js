@@ -1,18 +1,22 @@
-// models/Order.js
 const mongoose = require('mongoose');
 
 const orderSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+
+    // اگر سفارش چند محصولی باشه
+    items: [
+      {
+        productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+        quantity: { type: Number, default: 1, min: 1, max: 100 },
+        priceAtPurchase: { type: Number, required: true }
+      }
+    ],
 
     purchaseId: { type: String, required: true, unique: true },
 
-    // تعداد محصول خریداری‌شده
-    quantity: { type: Number, default: 1, min: 1 },
-
-    // قیمت نهایی سفارش (ذخیره برای گزارش‌گیری)
-    totalPrice: { type: Number, required: true },
+    // قیمت نهایی سفارش
+    totalPrice: { type: Number, required: true, min: 0 },
 
     // وضعیت سفارش
     status: {
@@ -21,13 +25,13 @@ const orderSchema = new mongoose.Schema(
       default: 'pending'
     },
 
-    // اطلاعات کاربر در زمان خرید (برای جلوگیری از تغییر بعدی پروفایل)
+    // اطلاعات کاربر در زمان خرید
     buyerFirstName: { type: String, required: true },
     buyerLastName: { type: String, required: true },
-    buyerEmail: { type: String }, // اختیاری
+    buyerEmail: { type: String },
     deliveryAddress: { type: String, required: true },
     contactPhone: { type: String, required: true },
-    contactPhone2: { type: String }, // شماره دوم اختیاری
+    contactPhone2: { type: String },
 
     // روش پرداخت
     paymentMethod: {
@@ -36,13 +40,25 @@ const orderSchema = new mongoose.Schema(
       default: 'online'
     },
 
+    // وضعیت پرداخت (اختیاری برای آینده)
+    paymentStatus: {
+      type: String,
+      enum: ['unpaid', 'paid', 'failed'],
+      default: 'unpaid'
+    },
+
+    transactionId: { type: String }, // اختیاری: برای پرداخت آنلاین
+
     // یادداشت یا توضیحات سفارش
     note: { type: String }
   },
   {
-    timestamps: true, // ایجاد خودکار createdAt و updatedAt
+    timestamps: true,
     versionKey: false
   }
 );
+
+// ایندکس‌ها
+orderSchema.index({ userId: 1, purchaseId: 1 });
 
 module.exports = mongoose.model('Order', orderSchema);

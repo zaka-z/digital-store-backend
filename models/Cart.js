@@ -1,4 +1,3 @@
-// models/Cart.js
 const mongoose = require('mongoose');
 
 const cartSchema = new mongoose.Schema({
@@ -7,9 +6,13 @@ const cartSchema = new mongoose.Schema({
   items: [
     {
       productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
-      quantity: { type: Number, default: 1, min: 1 }
+      quantity: { type: Number, default: 1, min: 1, max: 100 },
+      priceAtPurchase: { type: Number } // اختیاری: ذخیره قیمت در زمان خرید
     }
   ]
 }, { timestamps: true });
+
+// هر کاربر فقط یک سبد با شماره مشخص داشته باشد
+cartSchema.index({ userId: 1, cartNumber: 1 }, { unique: true });
 
 module.exports = mongoose.model('Cart', cartSchema);
