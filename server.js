@@ -8,7 +8,16 @@ dotenv.config();
 const app = express();
 
 app.use(express.json());
-app.use(cors());
+
+// تنظیمات دقیق CORS
+app.use(cors({
+  origin: 'http://localhost:3000', // آدرس فرانت
+  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization']
+}));
+
+// پاسخ به preflight
+app.options('*', cors());
 
 // اتصال به دیتابیس
 mongoose.connect(process.env.MONGO_URI, {
