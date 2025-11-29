@@ -2,12 +2,13 @@
 const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
+
 const Product = require('../models/Product');
 const Order = require('../models/Order');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 
-// گرفتن همه محصولات (همه نقش‌ها)
+// گرفتن همه محصولات (user, admin, owner)
 router.get('/', authMiddleware(['user', 'admin', 'owner']), async (req, res) => {
   try {
     const products = await Product.find();
@@ -17,7 +18,7 @@ router.get('/', authMiddleware(['user', 'admin', 'owner']), async (req, res) => 
   }
 });
 
-// گرفتن یک محصول خاص
+// گرفتن یک محصول خاص (user, admin, owner)
 router.get('/:id', authMiddleware(['user', 'admin', 'owner']), async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -34,6 +35,7 @@ router.post('/buy/:id', authMiddleware(['user', 'admin']), async (req, res) => {
     const user = await User.findById(req.user.id);
 
     // بررسی کامل بودن پروفایل
+    if (!user) return res.status(404).json({ message: 'کاربر یافت نشد' });
     if (!user.firstName || !user.lastName || !user.address || !user.phone1) {
       return res.status(400).json({ message: 'لطفاً ابتدا اطلاعات پروفایل را تکمیل فرمایید' });
     }
@@ -41,12 +43,48 @@ router.post('/buy/:id', authMiddleware(['user', 'admin']), async (req, res) => {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: 'محصول یافت نشد' });
 
+    // ورودی‌های انتخابی از فرانت
+    const quantity = Number(req.body.quantity) > 0 ? Number(req.body.quantity) : 1;
+    const paymentMethod = ['cash', 'card', 'online'].includes(req.body.paymentMethod)
+      ? req.body.paymentMethod
+      : 'online';
+    const note = typeof req.body.note === 'string' ? req.body.note : '';
+
+    // تولید شناسه خرید یکتا
     const purchaseId = uuidv4();
-    const order = new Order({ userId: user._id, productId: product._id, purchaseId });
+
+    // ساخت سفارش کامل مطابق مدل Order
+    const order = new Order({
+      userId: user._id,
+      productId: product._id,
+      purchaseId,
+      quantity,
+      totalPrice: product.price * quantity,
+
+      status: 'pending',
+
+      // اطلاعات کاربر در زمان خرید (immutable snapshot)
+      buyerFirstName: user.firstName,
+      buyerLastName: user.lastName,
+      buyerEmail: user.email || '',
+
+      deliveryAddress: user.address,
+      contactPhone: user.phone1,
+      contactPhone2: user.phone2 || '',
+
+      paymentMethod,
+      note
+    });
+
     await order.save();
 
-    res.json({ message: `🛒 خرید محصول ${product.name} انجام شد`, purchaseId });
+    res.json({
+      message: `🛒 خرید محصول ${product.name} انجام شد`,
+      purchaseId,
+      orderId: order._id
+    });
   } catch (err) {
+    console.error('❌ Error in /api/products/buy/:id:', err);
     res.status(500).json({ message: 'خطا در خرید محصول', error: err.message });
   }
 });
@@ -55,11 +93,22 @@ router.post('/buy/:id', authMiddleware(['user', 'admin']), async (req, res) => {
 router.post('/', authMiddleware(['admin', 'owner']), async (req, res) => {
   try {
     const { name, price, description, fileUrl } = req.body;
-    if (!name || !price) {
-      return res.status(400).json({ message: 'نام و قیمت محصول الزامی هستند' });
+
+    if (!name || typeof name !== 'string') {
+      return res.status(400).json({ message: 'نام محصول الزامی است' });
+    }
+    const numericPrice = Number(price);
+    if (Number.isNaN(numericPrice) || numericPrice <= 0) {
+      return res.status(400).json({ message: 'قیمت معتبر نیست' });
     }
 
-    const product = new Product({ name, price, description, fileUrl });
+    const product = new Product({
+      name: name.trim(),
+      price: numericPrice,
+      description: (description || '').trim(),
+      fileUrl: (fileUrl || '').trim()
+    });
+
     await product.save();
     res.status(201).json(product);
   } catch (err) {
@@ -71,12 +120,22 @@ router.post('/', authMiddleware(['admin', 'owner']), async (req, res) => {
 router.put('/:id', authMiddleware(['admin', 'owner']), async (req, res) => {
   try {
     const { name, price, description, fileUrl } = req.body;
-    const product = await Product.findByIdAndUpdate(
-      req.params.id,
-      { name, price, description, fileUrl },
-      { new: true }
-    );
+
+    const update = {};
+    if (name) update.name = name.trim();
+    if (price !== undefined) {
+      const numericPrice = Number(price);
+      if (Number.isNaN(numericPrice) || numericPrice <= 0) {
+        return res.status(400).json({ message: 'قیمت معتبر نیست' });
+      }
+      update.price = numericPrice;
+    }
+    if (description !== undefined) update.description = description.trim();
+    if (fileUrl !== undefined) update.fileUrl = fileUrl.trim();
+
+    const product = await Product.findByIdAndUpdate(req.params.id, update, { new: true });
     if (!product) return res.status(404).json({ message: 'محصول یافت نشد' });
+
     res.json(product);
   } catch (err) {
     res.status(500).json({ message: 'خطا در ویرایش محصول', error: err.message });
