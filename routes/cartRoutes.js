@@ -1,10 +1,14 @@
-// routes/cartRoutes.js
 const express = require('express');
+const cors = require('cors');
 const router = express.Router();
+
 const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
 const authMiddleware = require('../middleware/auth');
+
+// پاسخ به preflight برای checkout
+router.options('/:cartNumber/checkout', cors());
 
 // گرفتن سبد خرید کاربر
 router.get('/:cartNumber', authMiddleware(['user']), async (req, res) => {
@@ -33,7 +37,9 @@ router.post('/:cartNumber/add', authMiddleware(['user']), async (req, res) => {
 router.post('/:cartNumber/checkout', authMiddleware(['user']), async (req, res) => {
   const cart = await Cart.findOne({ userId: req.user.id, cartNumber: req.params.cartNumber })
     .populate('items.productId');
-  if (!cart || cart.items.length === 0) return res.status(400).json({ message: 'سبد خالی است' });
+  if (!cart || cart.items.length === 0) {
+    return res.status(400).json({ message: 'سبد خالی است' });
+  }
 
   const purchaseId = `ORD-${Date.now()}`;
   const totalPrice = cart.items.reduce((sum, i) => sum + i.productId.price * i.quantity, 0);
