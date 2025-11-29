@@ -23,10 +23,17 @@ const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 
+// قابلیت‌های جدید
+const cartRoutes = require('./routes/cartRoutes');   // مدیریت سبد خرید
+const profileRoutes = require('./routes/profileRoutes'); // مدیریت پروفایل کاربر
 
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
+
+// مسیرهای جدید
+app.use('/api/cart', cartRoutes);
+app.use('/api/profile', profileRoutes);
 
 // مسیر ریشه
 app.get('/', (req, res) => {
